@@ -1,0 +1,110 @@
+Привет, Хабр!
+
+Иногда при разработке сетевых сервисов и пользовательских интерфейсов приходится сталкиваться с достаточно сложными сценариями взаимодействия, содержащими ветвления и циклы. Такие сценарии не укладываются в простую стейт-машину — недостаточно хранить все данные в сессионном объекте, желательно также отслеживать маршрут попадания системы в то или иное состояние, а в некоторых случаях — иметь возможность вернуться на несколько шагов назад, повторить диалог в цикле, и т.д. Раньше для этой цели приходилось разрабатывать собственные структуры данных, иммитирующие стековую машину, или даже использовать сторонние скриптовые языки. С появлением асинхронных возможностей почти во всех языках программирования — стало возможным писать сценарии на том же языке, на котором написан сервис. Сценарий, со своим стеком и локальными переменными собственно и является пользовательской сессией, то есть хранит в себе и данные, и маршрут. Например, горутина с блокирующим чтением из канала легко решает эту задачу, но во-первых, зеленая нить это удовольствие не бесплатное, а во-вторых, мы пишем на Rust, где нет никаких зеленых нитей, зато есть генераторы и async/await.
+
+Для примера напишем простого http-бота, который выводит в браузер html-форму, задавая вопросы пользователю до тех пор, пока тот не ответит, что чувствует себя хорошо. Программа представляет собой простейший однопоточный http-сервер, сценарий бота пишем в виде генератора Rust. Напомню, что генераторы JavaScript позволяют двухсторонний обмен данными, то есть внутрь генератора можно передать вопрос generator.next(my_question), и вернуть из него ответ yield my_response. В Rust передача значений внутрь генератора пока не реализована (но обещают), поэтому обмен данными мы организуем через совместно используемую ячейку, в которой лежит структура с получаемыми и отправляемыми данными. Сценарий нашего бота создается функцией create_scenario(), которая возвращает экземпляр генератора, по сути замыкание, в которое перемещается параметр — указатель на ячейку с данными udata. Для каждой пользовательской сессии мы храним собственную ячейку с данными и собственный экземпляр генератора, со своим состоянием стека и значениями локальных переменных.
+
+#[derive(Default, Clone)]
+struct UserData {
+    sid: String,
+    msg_in: String,
+    msg_out: String,
+    script: String,
+}
+
+type UserDataCell = Rc<RefCell<UserData>>;
+
+struct UserSession {
+    udata: UserDataCell,
+    scenario: Pin<Box<dyn Generator<Yield = (), Return = ()>>>,
+}
+
+type UserSessions = HashMap<String, UserSession>;
+
+fn create_scenario(udata: UserDataCell) -> impl Generator<Yield = (), Return = ()> {
+    move || {
+        let uname;
+        let mut umood;
+
+        udata.borrow_mut().msg_out = format!("Hi, what is you name ?");
+        yield ();
+
+        uname = udata.borrow().msg_in.clone();
+        udata.borrow_mut().msg_out = format!("{}, how are you feeling ?", uname);
+        yield ();
+
+        'not_ok: loop {
+            umood = udata.borrow().msg_in.clone();
+            if umood.to_lowercase() == "ok" { break 'not_ok; }
+            udata.borrow_mut().msg_out = format!("{}, think carefully, maybe you're ok ?", uname);
+            yield ();
+
+            umood = udata.borrow().msg_in.clone();
+            if umood.to_lowercase() == "ok" { break 'not_ok; }
+            udata.borrow_mut().msg_out = format!("{}, millions of people are starving, maybe you're ok ?", uname);
+            yield ();
+        }
+
+        udata.borrow_mut().msg_out = format!("{}, good bye !", uname);
+        return ();
+    }
+}
+
+Каждый шаг сценария состоит из простых действий — получить ссылку на содержимое ячейки, сохранить пользовательский ввод в локальных переменных, установить текст ответа и отдать управление наружу, посредством yield. Как видно из кода, наш генератор возвращает пустой кортеж (), а все данные передаются через общую ячейку со счетчиком ссылок Ref<Cell<...>>. Внутри генератора нужно следить за тем, чтобы заимствование содержимого ячейки borrow() не перешло через точку yield, иначе будет невозможно обновить данные извне генератора — поэтому, к сожалению, нельзя написать один раз в начале алгоритма let udata_mut = udata.borrow_mut(), а приходится заимствовать значение после каждого yield.
+
+Мы реализуем собственный цикл событий (чтение из сокета), и для каждого входящего запроса либо создаем новую пользовательскую сессию, либо находим существующую по sid, обновляя данные в ней:
+
+let mut udata: UserData = read_udata(&mut stream);
+let mut sid = udata.sid.clone();
+let session;
+
+if sid == "" { //new session
+    sid = rnd.gen::<u64>().to_string();
+    udata.sid = sid.clone();
+    let udata_cell = Rc::new(RefCell::new(udata));
+    sessions.insert(
+        sid.clone(),
+        UserSession {
+            udata: udata_cell.clone(),
+            scenario: Box::pin(create_scenario(udata_cell)),
+        }
+    );
+    session = sessions.get_mut(&sid).unwrap();
+} 
+else {
+    match sessions.get_mut(&sid) {
+        Some(s) => {
+            session = s;
+            session.udata.replace(udata);
+        }
+        None => {
+            println!("unvalid sid: {}", &sid);
+            continue;
+        }
+    }
+}
+
+Далее, мы передаем управление внутрь соответствующего генератора, а обновленные данные выводим обратно в сокет. На последнем шаге, когда весь сценарий пройден — мы удаляем сессию из хэшмапа и скрываем поле ввода с html-страницы с помощью js-скрипта.
+
+udata = match session.scenario.as_mut().resume() {
+    GeneratorState::Yielded(_) => session.udata.borrow().clone(),
+    GeneratorState::Complete(_) => {
+        let mut ud = sessions.remove(&sid).unwrap().udata.borrow().clone();
+        ud.script = format!("document.getElementById('form').style.display = 'none'");
+        ud
+    }
+};
+write_udata(&udata, &mut stream);
+
+Полный работающий код здесь:
+github.com/epishman/habr_samples/blob/master/chatbot/main.rs
+
+Приношу извинения за «колхозный» парсинг http, который даже не поддерживает кириллический ввод, зато все сделано стандартными средствами языка, без фреймворков, библиотек, и sms. Мне не очень нравится клонирование строк, да и сам сценарий выглядит не вполне компактно из-за обильного использования borrow_mut() и clone(). Наверное, опытные растаманы смогут это упростить. Главное, что задача решена минимальными средствами, и я надеюсь, что мы скоро получим полный набор асинхронных инструментов в стабильном релизе.
+
+PS
+Для компиляции нужна ночная сборка:
+rustup default nightly
+rustup update 
+
+Разобраться с генераторами мне помогли товарищи c английского Stack Overflow:
+stackoverflow.com/questions/56460206/how-can-i-transfer-some-values-into-a-rust-generator-at-each-step

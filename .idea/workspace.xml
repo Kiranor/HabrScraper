@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="3e8aa37a-6fea-47db-8405-ae3879e1490b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/Scrapper.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Scrapper.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="3e8aa37a-6fea-47db-8405-ae3879e1490b" name="Default Changelist" comment="Added TODO">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scripts/parser.py" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/parser.py" afterDir="false" />
     </list>
@@ -236,8 +234,16 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1617558816428</updated>
-      <workItem from="1617558822597" duration="330000" />
+      <workItem from="1617558822597" duration="1265000" />
     </task>
+    <task id="LOCAL-00001" summary="Added TODO">
+      <created>1617559199667</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1617559199667</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="ToolWindowManager">
@@ -275,6 +281,10 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Added TODO" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added TODO" />
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/venv/Lib/site-packages/easy-install.pth">

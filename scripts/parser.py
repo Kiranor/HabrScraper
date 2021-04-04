@@ -29,7 +29,7 @@ with open("config.json", 'r', encoding='utf-8') as f:
     htmlPath = data["defaultHtmlPath"]
     defaultUrl = data["defaultUrl"]
 
-html = getHtml(defaultUrl)
+html = get_html(defaultUrl)
 write_to_file(BeautifulSoup(html, 'lxml').title.text.split('/')[0], html, htmlPath, '.html')
 
 # Opening local main page HTML
@@ -58,8 +58,8 @@ cGet = 0
 for newUrl in links.values():
     print(newUrl)
     cGet += 1
-    currentPage = getHtml(newUrl)
-    currentSoup = BeautifulSoup(getHtml(newUrl), 'lxml')
+    currentPage = get_html(newUrl)
+    currentSoup = BeautifulSoup(get_html(newUrl), 'lxml')
     write_to_file(BeautifulSoup(currentPage, 'lxml').title.text.split('/')[0].split(' ')[-2], currentPage, htmlPath,
                   '.html')
     try:
@@ -70,7 +70,7 @@ for newUrl in links.values():
                 # print(topic.find('h2', class_='post__title').find('a').get('href'))
 
                 topicUrl = topic.find('h2', class_='post__title').find('a').get('href')
-                topicHtml = getHtml(topicUrl)
+                topicHtml = get_html(topicUrl)
                 topicSoup = BeautifulSoup(topicHtml, 'lxml')
                 topicName = topicSoup.title.text.split('/')[0]
                 if topicSoup.find('div', class_='company_post') is not None:
@@ -98,3 +98,9 @@ with open('References.json', 'w', encoding='utf-8') as f:
     # print(ref.get('href'))
 
 print('Jobs done')
+
+if __name__ == "__main__":
+    if __name__ == '__main__':
+        print('This program is being run by itself')
+    else:
+        print('I am being imported from another module')

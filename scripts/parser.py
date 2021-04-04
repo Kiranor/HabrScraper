@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import json
 import time
 
+# TODO: Testing TODO functionality
 
 
 def writeToFile(name,text,path,format = '.txt'):

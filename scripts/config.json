@@ -1,6 +1,5 @@
 {
   "defaultUrl": "https://habr.com/ru/",
-  "defaultContentPath":"K:\\Projects\\Scrapper\\Content\\",
-  "defaultHtmlPath": "K:\\Projects\\Scrapper\\scripts\\data\\"
-
+  "defaultContentPath":".\\Scrapper\\Content\\",
+  "defaultHtmlPath": ".\\Scrapper\\scripts\\data\\"
 }
